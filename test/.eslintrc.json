@@ -1,0 +1,12 @@
+{
+    "parserOptions": {
+        "ecmaVersion": 8
+    },
+    "env": {
+        "mocha": true,
+        "es6": true
+    },
+    "rules": {
+        "no-console": "off"
+    }
+}
