@@ -1,37 +1,94 @@
-## Welcome to GitHub Pages
+rdfs-js
+=======
 
-You can use the [editor on GitHub](https://github.com/Qfield/rdfs-js/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+Introduction
+------------
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+This is a RDF data model mapping library for javascript. It's primary feature is mapping from RDFS Class to javascript constructor function, and mapping from RDFS data types to javascript data types.
 
-### Markdown
-
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
-
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
+## Requiring rdfs-js:
+```
+npm install --save rdfs
+```
+```js
+const RDFS = require('rdfs');
 ```
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+## Quick Examples
+### Serialization Example
+```js
+const RDFS = require('rdfs');
+const should = require('should/as-function');
+const JSONLD = require('jsonld');
+const model = new RDFS.Model(
+    'http://qfield.net/example/ns#',
+    {
+        'rdf': RDFS.IRI_RDF,
+        'rdfs': RDFS.IRI_RDFS,
+        'xsd': RDFS.IRI_XSD,
+        'owl': 'http://www.w3.org/2002/07/owl#',
+        'dc': 'http://purl.org/dc/elements/1.1/'
+    }
+);
 
-### Jekyll Themes
+const owlThing = model.rdfsClass('owl:Thing');
+const thisProject = owlThing('rdfs-js');
+thisProject.set('dc:creator', 'Qfield');
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/Qfield/rdfs-js/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+const jsonldDoc = thisProject.toJSON();
 
-### Support or Contact
+const nquads = await JSONLD.toRDF(jsonldDoc, {
+    format: 'application/nquads'
+});
 
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+const expectedStatements = [
+    '<http://www.w3.org/2000/01/rdf-schema#Class> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .',
+    '<http://www.w3.org/2002/07/owl#Thing> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .',
+    '<http://qfield.net/example/ns#rdfs-js> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Thing> .',
+    '<http://qfield.net/example/ns#rdfs-js> <http://purl.org/dc/elements/1.1/creator> "Qfield" .'
+];
+const statements = nquads.trim().split('\n');
+should(statements).have.length(expectedStatements.length);
+should(statements).containDeep(expectedStatements);
+should(expectedStatements).containDeep(statements);
+```
+### Deserialization Example
+```js
+const RDFS = require('rdfs');
+const should = require('should/as-function');
+const JSONLD = require('jsonld');
+const model = new RDFS.Model(
+    'http://qfield.net/example/ns#',
+    {
+        'rdf': RDFS.IRI_RDF,
+        'rdfs': RDFS.IRI_RDFS,
+        'xsd': RDFS.IRI_XSD,
+        'owl': 'http://www.w3.org/2002/07/owl#',
+        'dc': 'http://purl.org/dc/elements/1.1/'
+    }
+);
+
+const rdfDoc = '<http://qfield.net/example/ns#rdfs-js> <http://purl.org/dc/elements/1.1/creator> "Qfield" .\n'
+    + '<http://qfield.net/example/ns#rdfs-js> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2002/07/owl#Thing> .\n'
+    + '<http://www.w3.org/2002/07/owl#Thing> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/2000/01/rdf-schema#Class> .\n';
+
+const jsonldDoc = await JSONLD.fromRDF(rdfDoc, {
+    format: 'application/nquads'
+});
+
+const container = await model.load(jsonldDoc);
+
+const thisProject = container.get(RDFS.IRI_RDFS_MEMBER).get('rdfs-js');
+should(thisProject.get('dc:creator').valueOf()).equal('Qfield');
+should(thisProject.get(RDFS.IRI_RDF_TYPE).has(model.rdfsResource('owl:Thing'))).be.true();
+
+const owlThing = thisProject.get(RDFS.IRI_RDF_TYPE).get('owl:Thing');
+should(owlThing.get(RDFS.IRI_RDF_TYPE).has(model.rdfsClass)).be.true();
+```
+
+### [More examples](https://github.com/Qfield/rdfs-js/tree/master/test)
+
+## License
+Copyright &copy; 2020 [Qfield](http://qfield.net)
+
+Apache 2.0
